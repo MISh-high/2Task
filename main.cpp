@@ -1,12 +1,15 @@
+#include "nlohmann/json.hpp"
+#include "tasks_func.cpp"
+#include "draw_func.cpp"
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <iostream>
+#include <string>
 #include <cmath>
 #include <ctime>    
 #include <SDL.h>
-#include <string>
-#include <iostream>
-#include <SDL_ttf.h>
-#include <SDL_image.h>
-#include "draw_func.cpp"
-#include "tasks_func.cpp"
+
+using json = nlohmann::ordered_json;
 
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 600;
@@ -81,10 +84,17 @@ static SDL_HitTestResult HitTestCallback(SDL_Window* win, const SDL_Point* area,
 int main(int argc, char* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-    std::string filename = "tasks.txt";
+    std::string filename = "data/tasks.txt";
     std::vector<Task> tasks = loadTasks(filename);
-    filename = "targets.txt";
+    filename = "data/targets.txt";
     std::vector<Task> targets = loadTasks(filename);
+
+    std::ifstream inFile("data/tags.json");
+    json tagj;
+    inFile >> tagj;
+    inFile.close();
+
+    
     // Инициализация SDL2
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         logSDLError("SDL_Init");
@@ -123,7 +133,7 @@ int main(int argc, char* argv[]) {
     draw draw;
 
     // Загрузка шрифта
-    TTF_Font* font = TTF_OpenFont("font.ttf", 24);
+    TTF_Font* font = TTF_OpenFont("data/font.ttf", 24);
     if (!font) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -132,7 +142,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-    TTF_Font* lfont = TTF_OpenFont("lfont.ttf", 18);
+    TTF_Font* lfont = TTF_OpenFont("data/lfont.ttf", 18);
     if (!lfont) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -141,7 +151,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-    TTF_Font* lowfont = TTF_OpenFont("font.ttf", 22);
+    TTF_Font* lowfont = TTF_OpenFont("data/font.ttf", 22);
     if (!lowfont) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -151,7 +161,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    SDL_Surface* icon = IMG_Load("icon.png");
+    SDL_Surface* icon = IMG_Load("data/icon.png");
     if (icon != nullptr) {
         // Установка иконки для окна
         SDL_SetWindowIcon(window, icon);
@@ -286,9 +296,9 @@ int main(int argc, char* argv[]) {
                     }
                     if (mouseY > WINDOW_HEIGHT - 44 and 10 <= mouseX && mouseX <= 100 and NoSavedChanges) {
                         NoSavedChanges = false;
-                        filename = "tasks.txt";
+                        filename = "data/tasks.txt";
                         saveTasks(filename, tasks);
-                        filename = "targets.txt";
+                        filename = "data/targets.txt";
                         saveTasks(filename, targets);
                     }
                     if (mouseX < sidebar_anim) {
@@ -547,6 +557,7 @@ int main(int argc, char* argv[]) {
                             bool sum_this_ = false;
                             if (text == "") text = "0";
                             //std::cout << std::stoi(text) << "  -  " << (ch - '0') << std::endl;
+                            if (PlanTasks) sum_this_ = true;
                             if (EditItem_inTask == 3 and std::stoi(text) * 10 + (ch - '0') < 7) sum_this_ = true;
                             if (EditItem_inTask == 4 and std::stoi(text) * 10 + (ch - '0') < 24) sum_this_ = true;
                             if (EditItem_inTask == 5 and std::stoi(text) * 10 + (ch - '0') < 60) sum_this_ = true;
@@ -629,9 +640,10 @@ int main(int argc, char* argv[]) {
                             else {
                                 //if (target_deep == 0) {
                                 if (EditItem_inTask == 1) { targets[IndexEditTask].name = text; text = targets[IndexEditTask].description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 2) targets[IndexEditTask].description = text;
+                                else if (EditItem_inTask == 2) { targets[IndexEditTask].description = text; text = std::to_string(targets[IndexEditTask].tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
+                                else if (EditItem_inTask == 3) targets[IndexEditTask].tag = std::stoi(text);
                                 EditItem_inTask++;
-                                if (EditItem_inTask > 2) {
+                                if (EditItem_inTask > 3) {
                                     NoSavedChanges = true;
                                     EditItem_inTask = 0;
                                     EditMenu = false;
@@ -697,9 +709,10 @@ int main(int argc, char* argv[]) {
                             else {
 
                                 if (EditItem_inTask == 1) { EditNewTask_.name = text; text = EditNewTask_.description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
-                                if (EditItem_inTask == 2) EditNewTask_.description = text;
+                                else if (EditItem_inTask == 2) { EditNewTask_.description = text; text = std::to_string(EditNewTask_.tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
+                                else if (EditItem_inTask == 3) EditNewTask_.tag = std::stoi(text);
                                 EditItem_inTask++;
-                                if (EditItem_inTask > 2) {
+                                if (EditItem_inTask > 3) {
                                     NoSavedChanges = true;
                                     EditItem_inTask = 0;
                                     EditMenu = false;
@@ -923,9 +936,12 @@ int main(int argc, char* argv[]) {
 
                             if (targets[index_offset].timeInMinutes == 0) {
                                 if (draw_offset >= 50) {
+                                    std::string tag_key = std::to_string(targets[index_offset].tag);
+
                                     if (created_tt == false) {
                                         TextItem item;
-                                        item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), textColor, item.rect, 210);
+                                        if (tagj.contains(tag_key)) item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), { Uint8(tagj[tag_key]["text_color"][0]), Uint8(tagj[tag_key]["text_color"][1]), Uint8(tagj[tag_key]["text_color"][2]), 255 }, item.rect, 210);
+                                        else item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), textColor, item.rect, 210);
                                         item.rect.x = 0;
                                         item.rect.y = draw_offset + 28;
 
@@ -934,8 +950,12 @@ int main(int argc, char* argv[]) {
                                         }
                                     }
 
+
+                                    if (tagj.contains(tag_key)) SDL_SetRenderDrawColor(renderer, Uint8(tagj[tag_key]["color"][0]), Uint8(tagj[tag_key]["color"][1]), Uint8(tagj[tag_key]["color"][2]), 255);
+                                    else SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
+
                                     draw.DrawSidebarB(renderer, { 0, draw_offset, int(sidebar_anim - 30), 60 }, 20);
-                                    SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
+                                    //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
                                     SDL_Rect text_rect = { textItems[index_offset_unr].rect.x + int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.w/2, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                     SDL_RenderCopy(renderer, textItems[index_offset_unr].texture, nullptr, &text_rect);
 
@@ -977,9 +997,11 @@ int main(int argc, char* argv[]) {
                         if (targets[index_offset].type == targets[CurrTagrId].type and targets[index_offset].timeInMinutes != 0)
                         {
                             if (draw_offset >= 50) {
+                                std::string tag_key = std::to_string(targets[index_offset].tag);
                                 if (created_tt == false) {
                                     TextItem item;
-                                    item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), textColor, item.rect, 210);
+                                    if (tagj.contains(tag_key)) item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), { Uint8(tagj[tag_key]["text_color"][0]), Uint8(tagj[tag_key]["text_color"][1]), Uint8(tagj[tag_key]["text_color"][2]), 255 }, item.rect, 210);
+                                    else item.texture = CreateTextTexture(renderer, lowfont, targets[index_offset].name.c_str(), textColor, item.rect, 210);
                                     item.rect.x = item.rect.w / 2;
                                     item.rect.y = draw_offset + 28;
 
@@ -988,8 +1010,10 @@ int main(int argc, char* argv[]) {
                                     }
                                 }
 
+                                if (tagj.contains(tag_key)) SDL_SetRenderDrawColor(renderer, Uint8(tagj[tag_key]["color"][0]), Uint8(tagj[tag_key]["color"][1]), Uint8(tagj[tag_key]["color"][2]), 255);
+                                else SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
                                 draw.DrawSidebarB(renderer, { 0, draw_offset, int(sidebar_anim - 30), 60 }, 20);
-                                SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
+                                //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
                                 SDL_Rect text_rect = { int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.x, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                 SDL_RenderCopy(renderer, textItems[index_offset_unr].texture, nullptr, &text_rect);
                                 if (draw_offset <= mouseY && mouseY <= draw_offset + 60 and mouseX < sidebar_anim and sidebar_opened) {

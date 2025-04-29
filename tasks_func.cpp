@@ -1,16 +1,17 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <sstream>
 #include <windows.h>
+#include <iostream>
+#include <sstream>
+#include <fstream>
 #include <iomanip>
+#include <vector>
+#include <string>
 
 struct Task {
-    std::string name;
-    std::string description;
     int timeInMinutes; // Время в минутах от начала недели (0:00 воскресенья)
     int type;
+    int tag;
+    std::string name;
+    std::string description;
 
     void display() const {
         std::cout << name << "|" << description << "|" << timeInMinutes << "|" << type << std::endl;
@@ -50,6 +51,8 @@ static std::vector<Task> loadTasks(const std::string& filename) {
         ss >> task.timeInMinutes;
         ss.ignore(); // Пропускаем разделитель '|'
         ss >> task.type;
+        ss.ignore(); // Пропускаем разделитель '|'
+        ss >> task.tag;
         tasks.push_back(task);
     }
 
@@ -78,7 +81,7 @@ static void saveTasks(const std::string& filename, const std::vector<Task>& task
     }
 
     for (const Task& task : tasks) {
-        file << task.name << "|" << task.description << "|" << task.timeInMinutes << "|" << task.type << std::endl;
+        file << task.name << "|" << task.description << "|" << task.timeInMinutes << "|" << task.type << "|" << task.tag << std::endl;
     }
 
     file.close();
