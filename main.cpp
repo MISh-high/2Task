@@ -248,6 +248,7 @@ int main(int argc, char* argv[]) {
                 running = false;
             }
             else  if (event.type == SDL_WINDOWEVENT) {
+                static_img_timer = SDL_GetTicks();
                 static_img = false;
                 last_sidebar_anim_ = -40.00;
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
@@ -512,6 +513,7 @@ int main(int argc, char* argv[]) {
 
             }
             else if (event.type == SDL_MOUSEWHEEL) {
+                static_img_timer = SDL_GetTicks();
                 static_img = false;
                 if (mouseX < sidebar_anim) {
                     if (event.wheel.y > 0) {
@@ -534,6 +536,7 @@ int main(int argc, char* argv[]) {
             }
             if (EditItem_inTask != 0) {
                 if (event.type == SDL_TEXTINPUT) {
+                    static_img_timer = SDL_GetTicks();
                     static_img = false;
                     if (EditItem_inTask <= 2) {
                         text += event.text.text;
@@ -555,9 +558,10 @@ int main(int argc, char* argv[]) {
                     last_sidebar_anim_ = -40.00;
                 }
                 else if (event.type == SDL_KEYDOWN) {
+                    static_img_timer = SDL_GetTicks();
                     static_img = false;
                     if (event.key.keysym.sym == SDLK_BACKSPACE && !text.empty()) {
-                        text.pop_back();
+                        pop_back_utf8(text);
                         last_sidebar_anim_ = -40.00;
                         //if (text == "" and EditItem_inTask > 2) text = "0";
                     }

@@ -139,3 +139,12 @@ static int getNearestTask(const std::vector<Task>& tasks) {
     if (counter < 0) counter = int(tasks.size()+counter);
     return counter;
 }
+
+static void pop_back_utf8(std::string& str) {
+    if (str.empty()) return;
+    auto it = str.end();
+    do {
+        --it;
+    } while (it != str.begin() && ((*it & 0xC0) == 0x80)); // Убираем continuation bytes
+    str.erase(it, str.end());
+}
