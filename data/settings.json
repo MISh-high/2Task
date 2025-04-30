@@ -1,0 +1,16 @@
+{
+    "centered": {
+        "deep0": false,
+        "deep1": false
+    },
+    "font_size": {
+        "general": 22,
+        "sub": 24,
+        "low": 18
+    },
+    "font_color": {
+        "default": [
+            249, 247, 245
+        ]
+    }
+}

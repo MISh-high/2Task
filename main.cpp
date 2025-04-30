@@ -74,7 +74,7 @@ static SDL_HitTestResult HitTestCallback(SDL_Window* win, const SDL_Point* area,
 
     // Делаем верхнюю часть (30px) перетаскиваемой, кроме правых 130px (где может быть кнопка закрытия)
     if (area->x <= width - 130) {
-        if ((area->x >= 260 && area->y < 30) or area->y < 10) return SDL_HITTEST_DRAGGABLE;
+        if ((area->x >= 250 && area->y < 30) or area->y < 10) return SDL_HITTEST_DRAGGABLE;
     }
 
     return SDL_HITTEST_NORMAL;
@@ -93,6 +93,11 @@ int main(int argc, char* argv[]) {
     json tagj;
     inFile >> tagj;
     inFile.close();
+
+    std::ifstream inSettFile("data/settings.json");
+    json settings;
+    inSettFile >> settings;
+    inSettFile.close();
 
     
     // Инициализация SDL2
@@ -133,7 +138,7 @@ int main(int argc, char* argv[]) {
     draw draw;
 
     // Загрузка шрифта
-    TTF_Font* font = TTF_OpenFont("data/font.ttf", 24);
+    TTF_Font* font = TTF_OpenFont("data/font.ttf", settings["font_size"]["sub"]);
     if (!font) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -142,7 +147,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-    TTF_Font* lfont = TTF_OpenFont("data/lfont.ttf", 18);
+    TTF_Font* lfont = TTF_OpenFont("data/lfont.ttf", settings["font_size"]["low"]);
     if (!lfont) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -151,7 +156,7 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-    TTF_Font* lowfont = TTF_OpenFont("data/font.ttf", 22);
+    TTF_Font* lowfont = TTF_OpenFont("data/font.ttf", settings["font_size"]["general"]);
     if (!lowfont) {
         logSDLError("TTF_OpenFont");
         SDL_DestroyRenderer(renderer);
@@ -198,13 +203,14 @@ int main(int argc, char* argv[]) {
     int static_posY = 0;
     int EditItem_inTask = 0;
     Task EditNewTask_;
+    EditNewTask_.tag = 0;
     int IndexEditTask = -1;
     bool NoSavedChanges = false;
     bool crutch = false;
     int TimeNearestTask = 0;
     int NearestTagrId = -1;
     int NearestSUBTagrId = -1;
-    int CurrTagrId = 0;
+    int CurrTagrId = 0; 
     start_index = getNearestTask(tasks);
     TimeNearestTask = start_index;
     if (TaskTimeChange == true) NearestTaskId = TimeNearestTask;
@@ -215,7 +221,7 @@ int main(int argc, char* argv[]) {
     std::string text = "план      задачи";
     int choice = 0;
     Uint32 timer = 0;
-    SDL_Color textColor = { 245, 245, 245, 255 };
+    SDL_Color textColor = { Uint8(settings["font_color"]["default"][0]), Uint8(settings["font_color"]["default"][1]), Uint8(settings["font_color"]["default"][2]), 255};
     SDL_Texture* MainCanvasTxtr;
     SDL_Rect ContentTypeRect = {300, 20, 10, 10};
     SDL_Texture* ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Название", textColor, ContentTypeRect);
@@ -286,7 +292,7 @@ int main(int argc, char* argv[]) {
                         if (WINDOW_WIDTH - 130 <= mouseX && mouseX <= WINDOW_WIDTH - 90) {
                             isBordered = !isBordered;
                             SDL_SetWindowBordered(window, isBordered ? SDL_TRUE : SDL_FALSE);
-                            SetRoundedRegion(window, 40, isBordered);
+                            SetRoundedRegion(window, 80, isBordered);
                             SDL_SetWindowResizable(window, SDL_TRUE);
 
                             if (isBordered) SDL_SetWindowHitTest(window, nullptr, nullptr); // Отключаем HitTest
@@ -343,15 +349,22 @@ int main(int argc, char* argv[]) {
                                     EditNewTask_.type = 0;
                                 }
                                 else if (target_deep == 0) {
-                                    int index_offset = 0;
-                                    int max_ind = 0;
-                                    while (index_offset < targets.size()) {
-                                        if (tasks[NearestTaskId].type == int(targets[index_offset].type / 10000) and targets[index_offset].type % 10000 > max_ind) max_ind = targets[index_offset].type % 10000;
-                                        index_offset++;
+                                    if (tasks[NearestTaskId].type != 0) {
+                                        int index_offset = 0;
+                                        int max_ind = 0;
+                                        while (index_offset < targets.size()) {
+                                            if (tasks[NearestTaskId].type == int(targets[index_offset].type / 10000) and targets[index_offset].type % 10000 > max_ind) max_ind = targets[index_offset].type % 10000;
+                                            index_offset++;
+                                        }
+                                        max_ind += 1;
+                                        EditNewTask_.timeInMinutes = 0;
+                                        EditNewTask_.type = (tasks[NearestTaskId].type * 10000) + max_ind;
                                     }
-                                    max_ind += 1;
-                                    EditNewTask_.timeInMinutes = 0;
-                                    EditNewTask_.type = (tasks[NearestTaskId].type * 10000) + max_ind;
+                                    else {
+                                        CreateNewTask = false;
+                                        EditItem_inTask = 0;
+                                        last_sidebar_anim_ = -40.00;
+                                    }
                                 }
                                 else {
                                     int index_offset = 0;
@@ -532,7 +545,7 @@ int main(int argc, char* argv[]) {
                     }
                     else if (event.wheel.y < 0) {
                         if (PlanTasks == 0 and start_index + 1 < tasks.size() - (WINDOW_HEIGHT - 110) / 75) start_index++;
-                        if (PlanTasks == 1 /*and TargFullSc == false*/ and target_deep == 0) targ_start_index++;
+                        if (PlanTasks == 1) targ_start_index++;
                     }
                     //TaskTimeChange = false;
                     created_tt = false;
@@ -561,7 +574,7 @@ int main(int argc, char* argv[]) {
                             if (EditItem_inTask == 3 and std::stoi(text) * 10 + (ch - '0') < 7) sum_this_ = true;
                             if (EditItem_inTask == 4 and std::stoi(text) * 10 + (ch - '0') < 24) sum_this_ = true;
                             if (EditItem_inTask == 5 and std::stoi(text) * 10 + (ch - '0') < 60) sum_this_ = true;
-                            if (EditItem_inTask == 6 and std::stoi(text) * 10 + (ch - '0') < 3) sum_this_ = true;
+                            if (EditItem_inTask == 6 and std::stoi(text) * 10 + (ch - '0') < 10) sum_this_ = true;
                             if (sum_this_) { if (text == "0") text = ch; else text += ch; }
 
                         }
@@ -713,7 +726,6 @@ int main(int argc, char* argv[]) {
                                 else if (EditItem_inTask == 3) EditNewTask_.tag = std::stoi(text);
                                 EditItem_inTask++;
                                 if (EditItem_inTask > 3) {
-                                    NoSavedChanges = true;
                                     EditItem_inTask = 0;
                                     EditMenu = false;
                                     CreateNewTask = false;
@@ -722,6 +734,7 @@ int main(int argc, char* argv[]) {
                                     }
                                     textItems.clear();
                                     created_tt = false;
+                                    NoSavedChanges = true;
                                     targets.push_back(EditNewTask_);
                                 }
                                 last_sidebar_anim_ = -40.00;
@@ -913,13 +926,6 @@ int main(int argc, char* argv[]) {
             if (created_tt == false) created_tt = true;
         }
         else { // -=-=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-  PlanTasks == 1  =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--
-            if (target_deep == 1) {
-                SDL_SetRenderDrawColor(renderer, 36, 35, 34, 255);
-                draw.DrawRoundedRect(renderer, { int(sidebar_anim - 120), WINDOW_HEIGHT - 44, 86, 30 }, 10);
-                //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
-                asd = { int(sidebar_anim - 115), WINDOW_HEIGHT - 45, 76, 28 };
-                SDL_RenderCopy(renderer, BackTestButt, nullptr, &asd);
-            }
             SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
             bool draw_tasks = true;
             int draw_offset = 50;
@@ -956,7 +962,9 @@ int main(int argc, char* argv[]) {
 
                                     draw.DrawSidebarB(renderer, { 0, draw_offset, int(sidebar_anim - 30), 60 }, 20);
                                     //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
-                                    SDL_Rect text_rect = { textItems[index_offset_unr].rect.x + int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.w/2, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
+                                    SDL_Rect text_rect;
+                                    if (settings["centered"]["deep0"]) text_rect = { textItems[index_offset_unr].rect.x + int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.w/2, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
+                                    else text_rect = { int(sidebar_anim) - 265, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                     SDL_RenderCopy(renderer, textItems[index_offset_unr].texture, nullptr, &text_rect);
 
                                     if (draw_offset <= mouseY && mouseY <= draw_offset + 60 and mouseX < sidebar_anim and sidebar_opened) {
@@ -1014,7 +1022,9 @@ int main(int argc, char* argv[]) {
                                 else SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
                                 draw.DrawSidebarB(renderer, { 0, draw_offset, int(sidebar_anim - 30), 60 }, 20);
                                 //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
-                                SDL_Rect text_rect = { int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.x, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
+                                SDL_Rect text_rect;
+                                if (settings["centered"]["deep0"]) text_rect = { int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.x, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
+                                else text_rect = { int(sidebar_anim) - 265, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                 SDL_RenderCopy(renderer, textItems[index_offset_unr].texture, nullptr, &text_rect);
                                 if (draw_offset <= mouseY && mouseY <= draw_offset + 60 and mouseX < sidebar_anim and sidebar_opened) {
                                     NearestTagrId = index_offset;
@@ -1042,6 +1052,11 @@ int main(int argc, char* argv[]) {
                     else draw_tasks = false;
                 }
                 if (created_tt == false) created_tt = true;
+                SDL_SetRenderDrawColor(renderer, 36, 35, 34, 255);
+                draw.DrawRoundedRect(renderer, { int(sidebar_anim - 120), WINDOW_HEIGHT - 44, 86, 30 }, 10);
+                //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
+                asd = { int(sidebar_anim - 115), WINDOW_HEIGHT - 45, 76, 28 };
+                SDL_RenderCopy(renderer, BackTestButt, nullptr, &asd);
             }
         }
         if (EditMenu and sidebar_opened) {
