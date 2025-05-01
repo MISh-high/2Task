@@ -1,6 +1,6 @@
 {
     "centered": {
-        "deep0": false,
+        "deep0": true,
         "deep1": false
     },
     "font_size": {

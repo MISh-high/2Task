@@ -1,6 +1,7 @@
 ﻿#include <windows.h>
 #include <cmath>
 #include <SDL.h>
+#include <stdbool.h>
 
 
 class draw {
@@ -112,3 +113,4 @@ static void SetRoundedRegion(SDL_Window* window, int radius, bool bordered) {
         SetWindowRgn(hwnd, hRegion, TRUE);
     }
 }
+

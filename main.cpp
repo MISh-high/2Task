@@ -79,6 +79,207 @@ static SDL_HitTestResult HitTestCallback(SDL_Window* win, const SDL_Point* area,
 
     return SDL_HITTEST_NORMAL;
 }
+static SDL_HitTestResult HitTestCallback_cs(SDL_Window* win, const SDL_Point* area, void* data) {
+    int width, height;
+    SDL_GetWindowSize(win, &width, &height);
+    if (area->x <= width - 50 and area->y < 50) return SDL_HITTEST_DRAGGABLE;
+    return SDL_HITTEST_NORMAL;
+}
+
+
+static SDL_Color show_color_picker(SDL_Color selected_color) {
+    SDL_Window* color_window = SDL_CreateWindow(
+        "Color Picker",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        400, 300,
+        SDL_WINDOW_BORDERLESS
+    );
+    TTF_Font* font = TTF_OpenFont("data/font.ttf", 24);
+
+    draw draw;
+
+    if (!color_window) {
+        return selected_color;
+    }
+    SetRoundedRegion(color_window, 40, false);
+    SDL_SetWindowHitTest(color_window, HitTestCallback_cs, nullptr);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(color_window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        SDL_DestroyWindow(color_window);
+        return selected_color;
+    }
+
+    // Initial color values
+    int r = selected_color.r;
+    int g = selected_color.g;
+    int b = selected_color.b;
+
+    SDL_Texture* r_val;
+    SDL_Texture* g_val;
+    SDL_Texture* b_val;
+    SDL_Rect r_rect = {330, 140, 0, 0};
+    SDL_Rect g_rect = { 330, 190, 0, 0 };
+    SDL_Rect b_rect = { 330, 240, 0, 0 };
+
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, std::to_string(r).c_str(), { 245, 245, 245, 255 });
+    r_val = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+    r_rect.w = surface->w;
+    r_rect.h = surface->h;
+
+    surface = TTF_RenderUTF8_Blended(font, std::to_string(g).c_str(), { 245, 245, 245, 255 });
+    g_val = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+    g_rect.w = surface->w;
+    g_rect.h = surface->h;
+
+    surface = TTF_RenderUTF8_Blended(font, std::to_string(b).c_str(), { 245, 245, 245, 255 });
+    b_val = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+    b_rect.w = surface->w;
+    b_rect.h = surface->h;
+
+
+    int last_r = 0;
+    int last_g = 0;
+    int last_b = 0;
+
+    bool done = false;
+    bool result = false;
+
+    SDL_Event e;
+    while (!done) {
+        int mouseX, mouseY;
+        Uint32 mouseState = SDL_GetMouseState(&mouseX, &mouseY);
+        while (SDL_PollEvent(&e)) {
+
+            if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER) {
+                    // Save color and close
+                    selected_color.r = r;
+                    selected_color.g = g;
+                    selected_color.b = b;
+                    done = true;
+                    result = true;
+                }
+                else if (e.key.keysym.sym == SDLK_ESCAPE) {
+                    // Close without saving
+                    done = true;
+                }
+            }
+            else if (e.type == SDL_MOUSEMOTION) {
+                // You could add mouse interaction for sliders here
+            }
+            else if (e.type == SDL_MOUSEBUTTONDOWN) {
+                if (e.button.button == SDL_BUTTON_LEFT) {
+                    if (mouseY < 50 and mouseX > 350 and mouseX < 400) {
+                        done = true;
+                    }
+                }
+            }
+            else if (e.type == SDL_MOUSEWHEEL) {
+                if (e.wheel.y > 0) {
+                    if (20 <= mouseX and mouseX <= 295) {
+                        if (130 <= mouseY and mouseY <= 180) r++;
+                        if (180 <= mouseY and mouseY <= 230) g++;
+                        if (230 <= mouseY and mouseY <= 280) b++;
+                    }
+                }
+                else if (e.wheel.y < 0) {
+                    if (20 <= mouseX and mouseX <= 295) {
+                        if (130 <= mouseY and mouseY <= 180) r--;
+                        if (180 <= mouseY and mouseY <= 230) g--;
+                        if (230 <= mouseY and mouseY <= 280) b--;
+                    }
+                }
+            }
+        }
+
+        if (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+            if (30 <= mouseX and mouseX <= 285) {
+                if (135 <= mouseY and mouseY <= 175) r = mouseX - 30;
+                if (185 <= mouseY and mouseY <= 225) g = mouseX - 30;
+                if (235 <= mouseY and mouseY <= 275) b = mouseX - 30;
+            }
+        }
+
+        if (r > 255) r = 255;
+        if (g > 255) g = 255;
+        if (b > 255) b = 255;
+        if (r < 0) r = 0;
+        if (g < 0) g = 0;
+        if (b < 0) b = 0;
+        
+
+        // Clear screen
+        SDL_SetRenderDrawColor(renderer, 26, 25, 24, 255);
+        SDL_RenderClear(renderer);
+
+        SDL_SetRenderDrawColor(renderer, 234, 224, 200, 255);
+        draw.DRRwB(renderer, {1,1,398,298}, 20);
+        // Draw color preview
+        SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+        draw.DrawRoundedRect(renderer, { 30, 30, 255, 90 }, 15);
+
+        SDL_SetRenderDrawColor(renderer, 249, 122, 122, 255);
+        draw.DRRwB(renderer, { 30, 140, 270, 30 }, 15);
+        draw.DrawCircle(renderer, 37 + r, 154, 15);
+
+        SDL_SetRenderDrawColor(renderer, 122, 249, 142, 255);
+        draw.DRRwB(renderer, { 30, 190, 270, 30 }, 15);
+        draw.DrawCircle(renderer, 37 + g, 204, 15);
+
+        SDL_SetRenderDrawColor(renderer, 122, 173, 249, 255);
+        draw.DRRwB(renderer, { 30, 240, 270, 30 }, 15);
+        draw.DrawCircle(renderer, 37 + b, 254, 15);
+
+        if (last_r != r) {
+            last_r = r;
+            surface = TTF_RenderUTF8_Blended(font, std::to_string(r).c_str(), {245, 245, 245, 255});
+            r_val = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_FreeSurface(surface);
+            r_rect.w = surface->w;
+            r_rect.h = surface->h;
+        }
+        if (last_g != g) {
+            last_g = g;
+            surface = TTF_RenderUTF8_Blended(font, std::to_string(g).c_str(), { 245, 245, 245, 255 });
+            g_val = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_FreeSurface(surface);
+            g_rect.w = surface->w;
+            g_rect.h = surface->h;
+        }
+        if (last_b != b) {
+            last_b = b;
+            surface = TTF_RenderUTF8_Blended(font, std::to_string(b).c_str(), { 245, 245, 245, 255 });
+            b_val = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_FreeSurface(surface);
+            b_rect.w = surface->w;
+            b_rect.h = surface->h;
+        }
+        SDL_RenderCopy(renderer, r_val, nullptr, &r_rect);
+        SDL_RenderCopy(renderer, g_val, nullptr, &g_rect);
+        SDL_RenderCopy(renderer, b_val, nullptr, &b_rect);
+
+
+        SDL_SetRenderDrawColor(renderer, 128, 62, 60, 255);
+        draw.DrawCircle(renderer, 375, 25, 15);
+
+        SDL_Delay(16);
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(color_window);
+
+    selected_color.r = r;
+    selected_color.g = g;
+    selected_color.b = b;
+
+    return selected_color;
+}
 
 
 int main(int argc, char* argv[]) {
@@ -197,6 +398,7 @@ int main(int argc, char* argv[]) {
     bool TaskTimeChange = true;
     bool EditMenu = false;
     bool CreateNewTask = false;
+    bool ChangeTag = false;
     bool static_img = false;
     Uint32 static_img_timer = 0;
     int static_posX = 0;
@@ -306,6 +508,10 @@ int main(int argc, char* argv[]) {
                         saveTasks(filename, tasks);
                         filename = "data/targets.txt";
                         saveTasks(filename, targets);
+                        std::ofstream output_file("data/tags.json");
+                        if (!output_file.is_open()) return 1;
+                        output_file << tagj.dump(4);
+                        output_file.close();
                     }
                     if (mouseX < sidebar_anim) {
                         if (!sidebar_opened) sidebar_opened = true;
@@ -376,6 +582,24 @@ int main(int argc, char* argv[]) {
                                     max_ind += 1;
                                     EditNewTask_.timeInMinutes = max_ind;
                                     EditNewTask_.type = targets[CurrTagrId].type;
+                                }
+                            }
+                            else if (mouseY > WINDOW_HEIGHT - 40 and sidebar_anim - 30 <= mouseX && mouseX <= sidebar_anim and EditMenu and PlanTasks) {
+                                ChangeTag = true;
+                                if (EditItem_inTask == 0) {
+                                    last_sidebar_anim_ = -40.00;
+                                    EditItem_inTask = 1;
+
+                                    EditNewTask_.name = "0";
+                                    EditNewTask_.description = "*****";
+
+                                    text = EditNewTask_.name;
+                                    ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect);
+                                }
+                                else {
+                                    ChangeTag = false;
+                                    EditItem_inTask = 0;
+                                    last_sidebar_anim_ = -40.00;
                                 }
                             }
                             else if (PlanTasks == 0) {
@@ -559,89 +783,159 @@ int main(int argc, char* argv[]) {
             }
             if (EditItem_inTask != 0) {
                 if (event.type == SDL_TEXTINPUT) {
-                    static_img_timer = SDL_GetTicks();
-                    static_img = false;
-                    if (EditItem_inTask <= 2) {
-                        text += event.text.text;
+                    if (!ChangeTag) {
+                        static_img_timer = SDL_GetTicks();
+                        static_img = false;
+                        if (EditItem_inTask <= 2) {
+                            text += event.text.text;
+                        }
+                        else {
+                            char ch = event.text.text[0]; // Получаем введенный символ
+                            if (ch >= '0' && ch <= '9') {
+                                bool sum_this_ = false;
+                                if (text == "") text = "0";
+                                //std::cout << std::stoi(text) << "  -  " << (ch - '0') << std::endl;
+                                if (PlanTasks) sum_this_ = true;
+                                if (EditItem_inTask == 3 and std::stoi(text) * 10 + (ch - '0') < 7) sum_this_ = true;
+                                if (EditItem_inTask == 4 and std::stoi(text) * 10 + (ch - '0') < 24) sum_this_ = true;
+                                if (EditItem_inTask == 5 and std::stoi(text) * 10 + (ch - '0') < 60) sum_this_ = true;
+                                if (EditItem_inTask == 6 and std::stoi(text) * 10 + (ch - '0') < 10) sum_this_ = true;
+                                if (sum_this_) { if (text == "0") text = ch; else text += ch; }
+
+                            }
+                        }
+                        last_sidebar_anim_ = -40.00;
                     }
                     else {
-                        char ch = event.text.text[0]; // Получаем введенный символ
-                        if (ch >= '0' && ch <= '9') {
-                            bool sum_this_ = false;
-                            if (text == "") text = "0";
-                            //std::cout << std::stoi(text) << "  -  " << (ch - '0') << std::endl;
-                            if (PlanTasks) sum_this_ = true;
-                            if (EditItem_inTask == 3 and std::stoi(text) * 10 + (ch - '0') < 7) sum_this_ = true;
-                            if (EditItem_inTask == 4 and std::stoi(text) * 10 + (ch - '0') < 24) sum_this_ = true;
-                            if (EditItem_inTask == 5 and std::stoi(text) * 10 + (ch - '0') < 60) sum_this_ = true;
-                            if (EditItem_inTask == 6 and std::stoi(text) * 10 + (ch - '0') < 10) sum_this_ = true;
-                            if (sum_this_) { if (text == "0") text = ch; else text += ch; }
-
+                        if (EditItem_inTask < 3) {
+                            if (EditItem_inTask == 1) {
+                                char ch = event.text.text[0]; // Получаем введенный символ
+                                if (ch >= '0' && ch <= '9') {
+                                    if (text == "0") text = ch;
+                                    else text += ch;
+                                }
+                            }
+                            else if (EditItem_inTask == 2) {
+                                text += event.text.text;
+                            }
+                            last_sidebar_anim_ = -40.00;
                         }
                     }
-                    last_sidebar_anim_ = -40.00;
                 }
                 else if (event.type == SDL_KEYDOWN) {
                     static_img_timer = SDL_GetTicks();
                     static_img = false;
                     if (event.key.keysym.sym == SDLK_BACKSPACE && !text.empty()) {
-                        pop_back_utf8(text);
-                        last_sidebar_anim_ = -40.00;
-                        //if (text == "" and EditItem_inTask > 2) text = "0";
+                        if (EditItem_inTask != 0) {
+                            if (ChangeTag) {
+                                if (EditItem_inTask < 3) {
+                                    pop_back_utf8(text);
+                                    last_sidebar_anim_ = -40.00;
+                                }
+                            }
+                            else {
+                                pop_back_utf8(text);
+                                last_sidebar_anim_ = -40.00;
+                            }
+                        }
                     }
                     else if (event.key.keysym.sym == SDLK_RETURN) {
-                        if (text == "") {
-                            if (EditItem_inTask > 2) text = "0";
-                            else text = "Вы ничего не ввели";
-                        }
+                        if (ChangeTag) {
+                            if (text == "") {
+                                if (EditItem_inTask == 0) text = "0";
+                                else text = "Вы ничего не ввели";
+                            }
 
-                        //int minutesInDay = timeInMinutes % 1440; // Убираем дни недели
-                        //int hours = floor(minutesInDay / 60);
-                        //int minutes = minutesInDay % 60;
-                        if (CreateNewTask == false) {
-                            if (PlanTasks == 0) {
-                                if (EditItem_inTask == 1) {
-                                    tasks[IndexEditTask].name = text; text = tasks[IndexEditTask].description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect);
-                                }
-                                else if (EditItem_inTask == 2) {
-                                    tasks[IndexEditTask].description = text; text = std::to_string(int(floor(tasks[IndexEditTask].timeInMinutes / 1440))); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"День недели", textColor, ContentTypeRect);
-                                }
+                            if (EditItem_inTask == 1) {
+                                EditNewTask_.name = text;
+                                if (!tagj.contains(EditNewTask_.name)) tagj[EditNewTask_.name]["name"] = "*****";
+                                text = tagj[EditNewTask_.name]["name"];
+                                ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect);
+                            }
+                            else if (EditItem_inTask == 2) {
+                                SDL_Color tag_color = { 128, 128, 128, 255 }; // Начальный цвет
+                                /*if (tagj.contains(EditNewTask_.name)) {
+                                    tag_color.r = Uint8(tagj[EditNewTask_.name]["color"][0]);
+                                    tag_color.g = Uint8(tagj[EditNewTask_.name]["color"][1]);
+                                    tag_color.b = Uint8(tagj[EditNewTask_.name]["color"][2]);
+                                }*/
+                                tagj[EditNewTask_.name]["name"] = text;
+                                ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Цвет тега", textColor, ContentTypeRect);
+                                text = "Настройте цвет в открывшемся окне, а после нажмите Enter";
+                                
+                                SDL_SetRenderDrawColor(renderer, 32, 31, 30, 255);
+                                draw.DrawRoundedRect(renderer, { int(sidebar_anim + 20), 20, WINDOW_WIDTH - 40 - int(sidebar_anim), WINDOW_HEIGHT - 40 }, 40);
+                                SDL_SetRenderDrawColor(renderer, 234, 224, 200, 255);
+                                draw.DRRwB(renderer, { int(sidebar_anim + 30), 30, WINDOW_WIDTH - 60 - int(sidebar_anim), WINDOW_HEIGHT - 60 }, 30);
+                                SDL_DestroyTexture(MainCanvasTxtr);
+                                MainCanvasTxtr = CreateTextTexture(renderer, lowfont, text.c_str(), textColor, MainCanvasRect, WINDOW_WIDTH - 100 - int(sidebar_anim));
+                                MainCanvasRect.y = 50;
+                                MainCanvasRect.x = int(sidebar_anim) + 50;
 
-                                else if (EditItem_inTask == 3) {
-                                    tasks[IndexEditTask].timeInMinutes = (std::stoi(text) * 1440) + (tasks[IndexEditTask].timeInMinutes % 1440);
-                                    text = std::to_string(int(floor((tasks[IndexEditTask].timeInMinutes % 1440) / 60)));
-                                    ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Часы", textColor, ContentTypeRect);
-                                }
-                                else if (EditItem_inTask == 4) {
-                                    tasks[IndexEditTask].timeInMinutes = tasks[IndexEditTask].timeInMinutes - tasks[IndexEditTask].timeInMinutes % 1440 + (std::stoi(text) * 60) + tasks[IndexEditTask].timeInMinutes % 60;
-                                    text = std::to_string(tasks[IndexEditTask].timeInMinutes % 60);
-                                    ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Минуты", textColor, ContentTypeRect);
-                                }
-                                else if (EditItem_inTask == 5) {
-                                    tasks[IndexEditTask].timeInMinutes = tasks[IndexEditTask].timeInMinutes - tasks[IndexEditTask].timeInMinutes % 60 + std::stoi(text);  text = std::to_string(tasks[IndexEditTask].type); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Тип", textColor, ContentTypeRect);
-                                }
+                                SDL_SetRenderDrawColor(renderer, 36, 35, 34, 255);
+                                draw.DrawRoundedRect(renderer, { ContentTypeRect.x - 7, 18, ContentTypeRect.w + 14 , 30 }, 10);
+                                SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+                                draw.DRRwB(renderer, { ContentTypeRect.x - 7, 18, ContentTypeRect.w + 14 , 30 }, 10);
+                                SDL_RenderCopy(renderer, ContentTypeTxtr, nullptr, &ContentTypeRect);
 
-
-                                else if (EditItem_inTask == 6) { tasks[IndexEditTask].type = std::stoi(text); }
-                                EditItem_inTask++;
-                                if (EditItem_inTask > 6) {
-                                    NoSavedChanges = true;
-                                    EditItem_inTask = 0;
-                                    EditMenu = false;
-                                    EditNewTask_ = tasks[IndexEditTask];
-                                    tasks.erase(tasks.begin() + IndexEditTask);
-
-                                    bool exit_ = false;
-                                    for (size_t i = 0; i < tasks.size() - 1; ++i) {
-                                        if (EditNewTask_.timeInMinutes > tasks[i].timeInMinutes and EditNewTask_.timeInMinutes <= tasks[i + 1].timeInMinutes) {
-                                            tasks.insert(tasks.begin() + i + 1, EditNewTask_);
-                                            exit_ = true;
-                                            break;
-                                        }
-                                    }
-                                    if (exit_ == false) tasks.push_back(EditNewTask_);
-                                    TimeNearestTask = getNearestTask(tasks);
+                                if (MainCanvasRect.h >= WINDOW_HEIGHT - 90) {
+                                    MainCanvasDRAWRect = { 0, 0, MainCanvasRect.w, WINDOW_HEIGHT - 90 };
+                                    MainCanvasRect.h = WINDOW_HEIGHT - 90;
+                                    SDL_RenderCopy(renderer, MainCanvasTxtr, &MainCanvasDRAWRect, &MainCanvasRect);
                                 }
+                                else SDL_RenderCopy(renderer, MainCanvasTxtr, nullptr, &MainCanvasRect);
+
+                                SDL_RenderPresent(renderer);
+                                tag_color = show_color_picker(tag_color);
+                                tagj[EditNewTask_.name]["color"][0] = tag_color.r;
+                                tagj[EditNewTask_.name]["color"][1] = tag_color.g;
+                                tagj[EditNewTask_.name]["color"][2] = tag_color.b;
+                                
+                            }
+                            else if (EditItem_inTask == 3) {
+                                SDL_Color tag_color = { 128, 128, 128, 255 }; // Начальный цвет
+                                /*if (tagj.contains(EditNewTask_.name)) {
+                                    tag_color.r = Uint8(tagj[EditNewTask_.name]["text_color"][0]);
+                                    tag_color.g = Uint8(tagj[EditNewTask_.name]["text_color"][1]);
+                                    tag_color.b = Uint8(tagj[EditNewTask_.name]["text_color"][2]);
+                                }*/
+                                ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Цвет текста", textColor, ContentTypeRect);
+                                text = "Настройте цвет текста в открывшемся окне, а после нажмите Enter";
+                                
+                                SDL_SetRenderDrawColor(renderer, 32, 31, 30, 255);
+                                draw.DrawRoundedRect(renderer, { int(sidebar_anim + 20), 20, WINDOW_WIDTH - 40 - int(sidebar_anim), WINDOW_HEIGHT - 40 }, 40);
+                                SDL_SetRenderDrawColor(renderer, 234, 224, 200, 255);
+                                draw.DRRwB(renderer, { int(sidebar_anim + 30), 30, WINDOW_WIDTH - 60 - int(sidebar_anim), WINDOW_HEIGHT - 60 }, 30);
+                                SDL_DestroyTexture(MainCanvasTxtr);
+                                MainCanvasTxtr = CreateTextTexture(renderer, lowfont, text.c_str(), textColor, MainCanvasRect, WINDOW_WIDTH - 100 - int(sidebar_anim));
+                                MainCanvasRect.y = 50;
+                                MainCanvasRect.x = int(sidebar_anim) + 50;
+
+                                SDL_SetRenderDrawColor(renderer, 36, 35, 34, 255);
+                                draw.DrawRoundedRect(renderer, { ContentTypeRect.x - 7, 18, ContentTypeRect.w + 14 , 30 }, 10);
+                                SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+                                draw.DRRwB(renderer, { ContentTypeRect.x - 7, 18, ContentTypeRect.w + 14 , 30 }, 10);
+                                SDL_RenderCopy(renderer, ContentTypeTxtr, nullptr, &ContentTypeRect);
+
+                                if (MainCanvasRect.h >= WINDOW_HEIGHT - 90) {
+                                    MainCanvasDRAWRect = { 0, 0, MainCanvasRect.w, WINDOW_HEIGHT - 90 };
+                                    MainCanvasRect.h = WINDOW_HEIGHT - 90;
+                                    SDL_RenderCopy(renderer, MainCanvasTxtr, &MainCanvasDRAWRect, &MainCanvasRect);
+                                }
+                                else SDL_RenderCopy(renderer, MainCanvasTxtr, nullptr, &MainCanvasRect);
+
+                                SDL_RenderPresent(renderer);
+                                tag_color = show_color_picker(tag_color);
+                                tagj[EditNewTask_.name]["text_color"][0] = tag_color.r;
+                                tagj[EditNewTask_.name]["text_color"][1] = tag_color.g;
+                                tagj[EditNewTask_.name]["text_color"][2] = tag_color.b;
+                            }
+                            EditItem_inTask++;
+                            last_sidebar_anim_ = -40.00;
+                            if (EditItem_inTask > 3) {
+                                EditItem_inTask = 0;
+                                ChangeTag = false;
+                                NoSavedChanges = true;
                                 last_sidebar_anim_ = -40.00;
                                 for (auto& item : textItems) {
                                     SDL_DestroyTexture(item.texture);
@@ -650,97 +944,158 @@ int main(int argc, char* argv[]) {
                                 textItems.clear();
                                 created_tt = false;
                             }
-                            else {
-                                //if (target_deep == 0) {
-                                if (EditItem_inTask == 1) { targets[IndexEditTask].name = text; text = targets[IndexEditTask].description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 2) { targets[IndexEditTask].description = text; text = std::to_string(targets[IndexEditTask].tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 3) targets[IndexEditTask].tag = std::stoi(text);
-                                EditItem_inTask++;
-                                if (EditItem_inTask > 3) {
-                                    NoSavedChanges = true;
-                                    EditItem_inTask = 0;
-                                    EditMenu = false;
-                                }
-                                last_sidebar_anim_ = -40.00;
-                                for (auto& item : textItems) {
-                                    SDL_DestroyTexture(item.texture);
-                                    if (PlanTasks == 0)SDL_DestroyTexture(item.time);
-                                }
-                                textItems.clear();
-                                created_tt = false;
-
-                                //}
-                            }
-
                         }
                         else {
-                            if (PlanTasks == 0) {
-                                if (EditItem_inTask == 1) { EditNewTask_.name = text; text = EditNewTask_.description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 2) { EditNewTask_.description = text; text = std::to_string(int(floor(EditNewTask_.timeInMinutes / 1440))); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"День недели", textColor, ContentTypeRect); }
 
-                                else if (EditItem_inTask == 3) {
-                                    EditNewTask_.timeInMinutes = (std::stoi(text) * 1440) + (EditNewTask_.timeInMinutes % 1440);
-                                    text = std::to_string(int(floor((EditNewTask_.timeInMinutes % 1440) / 60)));
-                                    ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Часы", textColor, ContentTypeRect);
-                                }
-                                else if (EditItem_inTask == 4) {
-                                    EditNewTask_.timeInMinutes = EditNewTask_.timeInMinutes - EditNewTask_.timeInMinutes % 1440 + (std::stoi(text) * 60) + EditNewTask_.timeInMinutes % 60;
-                                    text = std::to_string(EditNewTask_.timeInMinutes % 60);
-                                    ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Минуты", textColor, ContentTypeRect);
-                                }
-                                else if (EditItem_inTask == 5) { EditNewTask_.timeInMinutes = EditNewTask_.timeInMinutes - EditNewTask_.timeInMinutes % 60 + std::stoi(text); text = std::to_string(EditNewTask_.type); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Тип", textColor, ContentTypeRect); }
-
-
-                                else if (EditItem_inTask == 6) { EditNewTask_.type = std::stoi(text); }
-                                EditItem_inTask++;
-                                if (EditItem_inTask > 6) {
-                                    NoSavedChanges = true;
-                                    EditItem_inTask = 0;
-                                    EditMenu = false;
-                                    CreateNewTask = false;
-
-                                    bool exit_ = false;
-                                    for (size_t i = 0; i < tasks.size() - 1; ++i) {
-                                        if (EditNewTask_.timeInMinutes > tasks[i].timeInMinutes and EditNewTask_.timeInMinutes <= tasks[i + 1].timeInMinutes) {
-                                            tasks.insert(tasks.begin() + i + 1, EditNewTask_);
-                                            exit_ = true;
-                                            break;
-                                        }
-                                    }
-                                    if (exit_ == false) tasks.push_back(EditNewTask_);
-                                    TimeNearestTask = getNearestTask(tasks);
-                                    if (TaskTimeChange == true) NearestTaskId = TimeNearestTask;
-                                }
-                                last_sidebar_anim_ = -40.00;
-                                for (auto& item : textItems) {
-                                    SDL_DestroyTexture(item.texture);
-                                    if (PlanTasks == 0)SDL_DestroyTexture(item.time);
-                                }
-                                textItems.clear();
-                                created_tt = false;
+                            if (text == "") {
+                                if (EditItem_inTask > 2) text = "0";
+                                else text = "Вы ничего не ввели";
                             }
-                            else {
 
-                                if (EditItem_inTask == 1) { EditNewTask_.name = text; text = EditNewTask_.description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 2) { EditNewTask_.description = text; text = std::to_string(EditNewTask_.tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
-                                else if (EditItem_inTask == 3) EditNewTask_.tag = std::stoi(text);
-                                EditItem_inTask++;
-                                if (EditItem_inTask > 3) {
-                                    EditItem_inTask = 0;
-                                    EditMenu = false;
-                                    CreateNewTask = false;
+                            if (CreateNewTask == false) {
+                                if (PlanTasks == 0) {
+                                    if (EditItem_inTask == 1) {
+                                        tasks[IndexEditTask].name = text; text = tasks[IndexEditTask].description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect);
+                                    }
+                                    else if (EditItem_inTask == 2) {
+                                        tasks[IndexEditTask].description = text; text = std::to_string(int(floor(tasks[IndexEditTask].timeInMinutes / 1440))); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"День недели", textColor, ContentTypeRect);
+                                    }
+
+                                    else if (EditItem_inTask == 3) {
+                                        tasks[IndexEditTask].timeInMinutes = (std::stoi(text) * 1440) + (tasks[IndexEditTask].timeInMinutes % 1440);
+                                        text = std::to_string(int(floor((tasks[IndexEditTask].timeInMinutes % 1440) / 60)));
+                                        ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Часы", textColor, ContentTypeRect);
+                                    }
+                                    else if (EditItem_inTask == 4) {
+                                        tasks[IndexEditTask].timeInMinutes = tasks[IndexEditTask].timeInMinutes - tasks[IndexEditTask].timeInMinutes % 1440 + (std::stoi(text) * 60) + tasks[IndexEditTask].timeInMinutes % 60;
+                                        text = std::to_string(tasks[IndexEditTask].timeInMinutes % 60);
+                                        ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Минуты", textColor, ContentTypeRect);
+                                    }
+                                    else if (EditItem_inTask == 5) {
+                                        tasks[IndexEditTask].timeInMinutes = tasks[IndexEditTask].timeInMinutes - tasks[IndexEditTask].timeInMinutes % 60 + std::stoi(text);  text = std::to_string(tasks[IndexEditTask].type); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Тип", textColor, ContentTypeRect);
+                                    }
+
+
+                                    else if (EditItem_inTask == 6) { tasks[IndexEditTask].type = std::stoi(text); }
+                                    EditItem_inTask++;
+                                    if (EditItem_inTask > 6) {
+                                        NoSavedChanges = true;
+                                        EditItem_inTask = 0;
+                                        EditMenu = false;
+                                        EditNewTask_ = tasks[IndexEditTask];
+                                        tasks.erase(tasks.begin() + IndexEditTask);
+
+                                        bool exit_ = false;
+                                        for (size_t i = 0; i < tasks.size() - 1; ++i) {
+                                            if (EditNewTask_.timeInMinutes > tasks[i].timeInMinutes and EditNewTask_.timeInMinutes <= tasks[i + 1].timeInMinutes) {
+                                                tasks.insert(tasks.begin() + i + 1, EditNewTask_);
+                                                exit_ = true;
+                                                break;
+                                            }
+                                        }
+                                        if (exit_ == false) tasks.push_back(EditNewTask_);
+                                        TimeNearestTask = getNearestTask(tasks);
+                                    }
+                                    last_sidebar_anim_ = -40.00;
                                     for (auto& item : textItems) {
                                         SDL_DestroyTexture(item.texture);
+                                        if (PlanTasks == 0)SDL_DestroyTexture(item.time);
                                     }
                                     textItems.clear();
                                     created_tt = false;
-                                    NoSavedChanges = true;
-                                    targets.push_back(EditNewTask_);
                                 }
-                                last_sidebar_anim_ = -40.00;
+                                else {
+                                    //if (target_deep == 0) {
+                                    if (EditItem_inTask == 1) { targets[IndexEditTask].name = text; text = targets[IndexEditTask].description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
+                                    else if (EditItem_inTask == 2) { targets[IndexEditTask].description = text; text = std::to_string(targets[IndexEditTask].tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
+                                    else if (EditItem_inTask == 3) targets[IndexEditTask].tag = std::stoi(text);
+                                    EditItem_inTask++;
+                                    if (EditItem_inTask > 3) {
+                                        NoSavedChanges = true;
+                                        EditItem_inTask = 0;
+                                        EditMenu = false;
+                                    }
+                                    last_sidebar_anim_ = -40.00;
+                                    for (auto& item : textItems) {
+                                        SDL_DestroyTexture(item.texture);
+                                        if (PlanTasks == 0)SDL_DestroyTexture(item.time);
+                                    }
+                                    textItems.clear();
+                                    created_tt = false;
+
+                                    //}
+                                }
 
                             }
+                            else {
+                                if (PlanTasks == 0) {
+                                    if (EditItem_inTask == 1) { EditNewTask_.name = text; text = EditNewTask_.description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
+                                    else if (EditItem_inTask == 2) { EditNewTask_.description = text; text = std::to_string(int(floor(EditNewTask_.timeInMinutes / 1440))); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"День недели", textColor, ContentTypeRect); }
 
+                                    else if (EditItem_inTask == 3) {
+                                        EditNewTask_.timeInMinutes = (std::stoi(text) * 1440) + (EditNewTask_.timeInMinutes % 1440);
+                                        text = std::to_string(int(floor((EditNewTask_.timeInMinutes % 1440) / 60)));
+                                        ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Часы", textColor, ContentTypeRect);
+                                    }
+                                    else if (EditItem_inTask == 4) {
+                                        EditNewTask_.timeInMinutes = EditNewTask_.timeInMinutes - EditNewTask_.timeInMinutes % 1440 + (std::stoi(text) * 60) + EditNewTask_.timeInMinutes % 60;
+                                        text = std::to_string(EditNewTask_.timeInMinutes % 60);
+                                        ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Минуты", textColor, ContentTypeRect);
+                                    }
+                                    else if (EditItem_inTask == 5) { EditNewTask_.timeInMinutes = EditNewTask_.timeInMinutes - EditNewTask_.timeInMinutes % 60 + std::stoi(text); text = std::to_string(EditNewTask_.type); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Тип", textColor, ContentTypeRect); }
+
+
+                                    else if (EditItem_inTask == 6) { EditNewTask_.type = std::stoi(text); }
+                                    EditItem_inTask++;
+                                    if (EditItem_inTask > 6) {
+                                        NoSavedChanges = true;
+                                        EditItem_inTask = 0;
+                                        EditMenu = false;
+                                        CreateNewTask = false;
+
+                                        bool exit_ = false;
+                                        for (size_t i = 0; i < tasks.size() - 1; ++i) {
+                                            if (EditNewTask_.timeInMinutes > tasks[i].timeInMinutes and EditNewTask_.timeInMinutes <= tasks[i + 1].timeInMinutes) {
+                                                tasks.insert(tasks.begin() + i + 1, EditNewTask_);
+                                                exit_ = true;
+                                                break;
+                                            }
+                                        }
+                                        if (exit_ == false) tasks.push_back(EditNewTask_);
+                                        TimeNearestTask = getNearestTask(tasks);
+                                        if (TaskTimeChange == true) NearestTaskId = TimeNearestTask;
+                                    }
+                                    last_sidebar_anim_ = -40.00;
+                                    for (auto& item : textItems) {
+                                        SDL_DestroyTexture(item.texture);
+                                        if (PlanTasks == 0)SDL_DestroyTexture(item.time);
+                                    }
+                                    textItems.clear();
+                                    created_tt = false;
+                                }
+                                else {
+
+                                    if (EditItem_inTask == 1) { EditNewTask_.name = text; text = EditNewTask_.description; ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Описание", textColor, ContentTypeRect); }
+                                    else if (EditItem_inTask == 2) { EditNewTask_.description = text; text = std::to_string(EditNewTask_.tag); ContentTypeTxtr = CreateTextTextureNW(renderer, lowfont, (std::string)"Номер тега", textColor, ContentTypeRect); }
+                                    else if (EditItem_inTask == 3) EditNewTask_.tag = std::stoi(text);
+                                    EditItem_inTask++;
+                                    if (EditItem_inTask > 3) {
+                                        EditItem_inTask = 0;
+                                        EditMenu = false;
+                                        CreateNewTask = false;
+                                        for (auto& item : textItems) {
+                                            SDL_DestroyTexture(item.texture);
+                                        }
+                                        textItems.clear();
+                                        created_tt = false;
+                                        NoSavedChanges = true;
+                                        targets.push_back(EditNewTask_);
+                                    }
+                                    last_sidebar_anim_ = -40.00;
+
+                                }
+
+                            }
                         }
                     }
                 }
@@ -1023,7 +1378,7 @@ int main(int argc, char* argv[]) {
                                 draw.DrawSidebarB(renderer, { 0, draw_offset, int(sidebar_anim - 30), 60 }, 20);
                                 //SDL_SetRenderDrawColor(renderer, 84, 81, 78, 255);
                                 SDL_Rect text_rect;
-                                if (settings["centered"]["deep0"]) text_rect = { int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.x, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
+                                if (settings["centered"]["deep1"]) text_rect = { int(sidebar_anim) - 160 - textItems[index_offset_unr].rect.x, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                 else text_rect = { int(sidebar_anim) - 265, textItems[index_offset_unr].rect.y - textItems[index_offset_unr].rect.h / 2, textItems[index_offset_unr].rect.w,  textItems[index_offset_unr].rect.h };
                                 SDL_RenderCopy(renderer, textItems[index_offset_unr].texture, nullptr, &text_rect);
                                 if (draw_offset <= mouseY && mouseY <= draw_offset + 60 and mouseX < sidebar_anim and sidebar_opened) {
@@ -1067,8 +1422,23 @@ int main(int argc, char* argv[]) {
             SDL_SetRenderDrawColor(renderer, 110, 180, 100, 255);
 
             draw.DrawCircle(renderer, int(sidebar_anim - 151), WINDOW_HEIGHT - 31, 12);
-            //SDL_RenderDrawLine(renderer, int(sidebar_anim - 151), WINDOW_HEIGHT - 42, int(sidebar_anim - 151), WINDOW_HEIGHT - 19);
-            //SDL_RenderDrawLine(renderer, int(sidebar_anim - 162), WINDOW_HEIGHT - 31, int(sidebar_anim - 138), WINDOW_HEIGHT - 31);
+            if (PlanTasks) {
+                SDL_SetRenderDrawColor(renderer, 56, 54, 52, 255);
+                draw.DrawCircle(renderer, int(sidebar_anim) - 15, WINDOW_HEIGHT - 31, 10);
+            }
+            
+            /*SDL_SetRenderDrawColor(renderer, 31, 30, 29, 255);
+            draw.DrawRoundedRect(renderer, { int(sidebar_anim - 190), WINDOW_HEIGHT - 50, 80 , 40 }, 20);
+            SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+            draw.DRRwB(renderer, { int(sidebar_anim - 190), WINDOW_HEIGHT - 50, 80, 40 }, 20);
+            SDL_SetRenderDrawColor(renderer, 110, 180, 100, 255);
+
+            draw.DrawCircle(renderer, int(sidebar_anim - 151), WINDOW_HEIGHT - 31, 12);
+
+            SDL_SetRenderDrawColor(renderer, 98, 98, 98, 255);
+            draw.DrawCircle(renderer, int(sidebar_anim - 126), WINDOW_HEIGHT - 31, 10);
+            SDL_SetRenderDrawColor(renderer, 65, 65, 65, 255);
+            draw.DrawCircle(renderer, int(sidebar_anim - 175), WINDOW_HEIGHT - 31, 10);*/
 
         }
         if (NoSavedChanges) {
